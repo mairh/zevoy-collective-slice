@@ -3,7 +3,7 @@ import { builtinModules } from "node:module";
 import { join, posix } from "node:path";
 import picomatch from "picomatch";
 import { Node, type Project, type SourceFile, SyntaxKind } from "ts-morph";
-import { normalisedAccess, resolvedCalleeName } from "../analysis/globals";
+import { isGlobalObject, normalisedAccess, resolvedCalleeName } from "../analysis/globals";
 import { isCodeFile } from "../analysis/project";
 import type { ForbiddenConfig } from "../config";
 import { type Finding, type GateContext, type GateResult, resultFromFindings } from "./types";
@@ -15,7 +15,8 @@ export type AstRule =
   | "suppressed-check"
   | "banking-client-import"
   | "env-access"
-  | "does-not-compile";
+  | "does-not-compile"
+  | "import-escape";
 
 interface Occurrence {
   rule: AstRule;
@@ -191,6 +192,42 @@ function collect(sourceFile: SourceFile, file: string, project: Project, ctx: Ga
     }
   }
 
+  // A global looked up by a computed key (`globalThis["Web" + "Socket"]`) cannot be resolved statically, so it is
+  // rejected outright rather than guessed at.
+  for (const access of sourceFile.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
+    const argument = access.getArgumentExpression();
+    const literal = argument && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument));
+    if (isGlobalObject(access.getExpression()) && !literal) {
+      out.push({
+        rule: "dynamic-evaluation",
+        key: `computed-global:${access.getText()}`,
+        line: access.getStartLineNumber(),
+        message: `global accessed by computed key: ${compact(access.getText())}`,
+      });
+    }
+  }
+
+  // Reflect.get / Reflect.construct / Reflect.apply on a host object with a computed key is the same lookup in
+  // call form, so it gets the same treatment.
+  for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const callee = call.getExpression().getText();
+    const [target, key] = call.getArguments();
+    const literal = key !== undefined && (Node.isStringLiteral(key) || Node.isNoSubstitutionTemplateLiteral(key));
+    if (
+      /^Reflect\.(get|construct|apply|getOwnPropertyDescriptor)$/.test(callee) &&
+      target &&
+      isGlobalObject(target) &&
+      !literal
+    ) {
+      out.push({
+        rule: "dynamic-evaluation",
+        key: `reflect-global:${call.getText()}`,
+        line: call.getStartLineNumber(),
+        message: `global accessed through ${callee} with a computed key: ${compact(call.getText())}`,
+      });
+    }
+  }
+
   for (const access of [
     ...sourceFile.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression),
     ...sourceFile.getDescendantsOfKind(SyntaxKind.ElementAccessExpression),
@@ -218,6 +255,15 @@ function collect(sourceFile: SourceFile, file: string, project: Project, ctx: Ga
       continue;
     }
     const resolved = resolveRelative(file, specifier, project, ctx.root);
+    if (specifier.startsWith("/") || resolved === ".." || resolved.startsWith("../")) {
+      out.push({
+        rule: "import-escape",
+        key: specifier,
+        line,
+        message: `import reaches outside the repo: ${specifier}`,
+      });
+      continue;
+    }
     if (!importerAllowed && bankingModules.some((test) => test(resolved))) {
       out.push({
         rule: "banking-client-import",

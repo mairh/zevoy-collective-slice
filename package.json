@@ -12,10 +12,14 @@
     "ingest": "tsx src/cli/ingest.ts",
     "baseline": "tsx src/cli/baseline.ts",
     "gates": "tsx scripts/gates.ts",
+    "impact": "tsx src/cli/impact.ts",
     "fixtures": "tsx scripts/make-fixture-diffs.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check ."
+    "lint": "biome check .",
+    "eval": "tsx src/cli/eval.ts",
+    "release": "tsx src/cli/release.ts",
+    "trail": "tsx src/cli/audit.ts"
   },
   "dependencies": {
     "ajv": "^8.20.0",

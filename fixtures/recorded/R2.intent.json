@@ -1,0 +1,30 @@
+{
+  "requestId": "R2",
+  "agent": "intent",
+  "provenance": "ollama",
+  "model": "qwen2.5-coder:7b",
+  "promptVersion": "implementer.v2",
+  "recordedAt": "2026-10-05T00:33:50.325Z",
+  "output": {
+    "summary": "Add a transaction limit field to the card settings panel to allow users to set a maximum transaction amount for their cards.",
+    "scope": [
+      "src/ui/cards/CardSettingsPanel.tsx",
+      "src/ui/common/TextInput.tsx",
+      "src/ui/common/Field.tsx",
+      "src/ui/common/Button.tsx",
+      "src/api/CardsApi.ts"
+    ],
+    "acceptance": [
+      "The transaction limit field is visible in the card settings panel.",
+      "The field accepts numeric input and displays an error message if non-numeric input is entered.",
+      "The field updates the card's transaction limit when the user submits the form.",
+      "The card's transaction limit is updated on the server via the PATCH /cards/{id} endpoint.",
+      "The card's transaction limit is reflected in the card's details on the CardsPage."
+    ],
+    "outOfScope": [
+      "Changing the layout or design of the card settings panel.",
+      "Adding new features or functionality outside of the transaction limit field.",
+      "Modifying the behavior of existing components like Panel, Toggle, or FreezeCardToggle."
+    ]
+  }
+}

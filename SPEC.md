@@ -302,3 +302,31 @@ Logged departures from the spec above, with the reason for each.
     `window["fetch"]`, `self.fetch`, `const f = fetch`, `window["eval"]`, `new window["XMLHttpRequest"]()` and
     `process["env"]` evaded ast-validation and api-contract. They are now caught, and each has a regression fixture.
     Deny globs in write-scope are now case-insensitive.
+13. **Scope widened to cover the job description and the brief** (after the original slice was finished). The spec
+    said to resist scope creep toward more agents. The job description, however, explicitly asks for routing,
+    knowledge ingestion, swarms, circuit breakers and compliance, so each now has a small, tested, deterministic
+    implementation:
+    - router with fail-closed sensitivity routing, egress allow-list and metering
+    - parity harness and golden set
+    - docs, incidents and know-how in the graph
+    - contract-drift impact analysis
+    - a checkpointed swarm with intent and adversarial-reviewer agents
+    - breaker, kill switch and canary decision engines
+    - a hash-chained audit trail
+
+    Every model output still only adds information. Agents can escalate, never approve.
+14. **Agent failures fail safe.** A timeout or unparseable output is recorded (including in replays) and the run can
+    no longer be autonomous. A failed implementer yields an empty diff, which write-scope blocks.
+15. **Intent routed to the 7B on evidence.** The parity harness measured qwen2.5-coder:1.5b at 67% valid intent output
+    against 100% for the 7B on the golden requests. The 1.5B ran away for 15k tokens on R2 before output caps existed.
+16. **Validation round fixes.** Three independent reviewers (architecture, security, code quality) checked this repo.
+    Verified fixes:
+    - A global looked up by a computed key (`globalThis["Web" + "Socket"]`) is now rejected. Previously it passed every gate.
+    - Imports that leave the repo are rejected by an AST rule, and the bundler refuses them too. Previously they passed
+      every gate and pulled control-plane files into the sandbox.
+    - The render page runs under a `default-src 'none'` CSP. Playwright's request routing alone let a WebSocket through;
+      a test now proves zero connections reach a local server.
+    - Egress refuses redirects.
+    - A resumed run re-checks the circuit breaker before every step.
+    - A corrupted checkpoint throws instead of finishing silently.
+    - The audit-trail claim was narrowed to what a hash chain actually proves.

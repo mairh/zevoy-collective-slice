@@ -1,0 +1,10 @@
+$ tsx src/cli/eval.ts --parity intent --candidate local-small --baseline local-coder
+qwen2.5-coder:1.5b: 67% success, mean 6.8s
+  ok   R1 3 criteria
+  FAIL R2 invalid output: Unterminated string in JSON at position 5888 (line 64 column
+  ok   R3 3 criteria
+qwen2.5-coder:7b: 100% success, mean 9.2s
+  ok   R1 4 criteria
+  ok   R2 5 criteria
+  ok   R3 4 criteria
+parity fails: keep intent on local-coder (qwen2.5-coder:7b); qwen2.5-coder:1.5b succeeded 67% vs 100%

@@ -2,7 +2,7 @@ import { type Contract, deref, type JsonSchema, schemaName } from "../analysis/o
 import type { RetrievedContext } from "../retrieve/resolve";
 
 /** Bumped whenever the template changes, and stored with every recorded run. */
-export const PROMPT_VERSION = "implementer.v1";
+export const PROMPT_VERSION = "implementer.v2";
 
 export interface PromptMessages {
   system: string;
@@ -38,7 +38,12 @@ const SYSTEM = [
 ].join("\n");
 
 /** Builds the implementer prompt from a request and its graph-resolved context. */
-export function buildImplementerPrompt(request: string, context: RetrievedContext, contract: Contract): PromptMessages {
+export function buildImplementerPrompt(
+  request: string,
+  context: RetrievedContext,
+  contract: Contract,
+  acceptance: string[] = [],
+): PromptMessages {
   const contracts = context.contracts.map((node) => {
     const [method, path] = node.name.split(" ");
     const operation = contract.operations.find((candidate) => candidate.method === method && candidate.path === path);
@@ -54,6 +59,7 @@ export function buildImplementerPrompt(request: string, context: RetrievedContex
   );
   const user = [
     `CHANGE REQUEST: ${request}`,
+    ...(acceptance.length > 0 ? ["ACCEPTANCE CRITERIA:", ...acceptance.map((criterion) => `- ${criterion}`)] : []),
     "",
     `TARGET COMPONENT: ${context.target ? `${context.target.name} in ${context.target.sourceFile}` : "none found"}`,
     `OWNER: ${context.owners.map((owner) => owner.name).join(", ") || "unknown"}`,
@@ -63,6 +69,9 @@ export function buildImplementerPrompt(request: string, context: RetrievedContex
     "",
     "API FUNCTIONS YOU MAY CALL:",
     ...context.functions.map((fn) => `- ${fn.name} (${fn.sourceFile})`),
+    "",
+    "HISTORY (incidents and know-how that mention the target; do not repeat these mistakes):",
+    ...(context.history.length > 0 ? context.history : ["- none"]),
     "",
     "FILES:",
     ...files,

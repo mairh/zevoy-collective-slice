@@ -84,8 +84,13 @@ function overlayPlugin(root: string, overrides: Map<string, string>): Plugin {
   return {
     name: "diff-overlay",
     setup(pluginBuild) {
-      pluginBuild.onResolve({ filter: /^\./ }, (args) => {
+      pluginBuild.onResolve({ filter: /^[./]/ }, (args) => {
         const base = resolve(args.resolveDir, args.path);
+        // Hard boundary: agent code may only bundle files inside the target repo.
+        const inside = (path: string) => path.startsWith(`${resolve(root)}/`);
+        if (inside(args.importer) && !inside(base)) {
+          return { errors: [{ text: `import outside the target repo refused: ${args.path}` }] };
+        }
         for (const suffix of ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]) {
           if (absolute.has(`${base}${suffix}`)) {
             return { path: `${base}${suffix}` };
@@ -152,9 +157,17 @@ export async function renderFixture(
       errors.push(message.text());
     }
   });
+  // Three layers: CSP in the page (above), every HTTP request aborted, every WebSocket closed.
   await page.route("**/*", (route) => route.abort());
+  await page.routeWebSocket(/.*/, (socket) => socket.close());
   await page.setContent(
-    '<!doctype html><html><body style="margin:0;padding:16px;background:#f4f5f7"><div id="root"></div></body></html>',
+    [
+      "<!doctype html><html><head>",
+      // The browser itself refuses every connection the agent's code could open: fetch, XHR, WebSocket, beacons,
+      // images and fonts from anywhere but data: URIs. Inline script and style only.
+      `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:">`,
+      '</head><body style="margin:0;padding:16px;background:#f4f5f7"><div id="root"></div></body></html>',
+    ].join(""),
   );
   await page.addScriptTag({ content: code });
   await page.waitForFunction(() => Reflect.get(window, "__harnessReady") === true, undefined, { timeout: 5000 });

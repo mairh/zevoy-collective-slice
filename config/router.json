@@ -1,0 +1,84 @@
+{
+  "egressAllowList": [
+    "127.0.0.1",
+    "localhost",
+    "::1"
+  ],
+  "models": {
+    "claude-frontier": {
+      "tier": "frontier",
+      "provider": "anthropic",
+      "model": "claude-opus-5-5",
+      "zeroRetention": true
+    },
+    "claude-mid": {
+      "tier": "mid",
+      "provider": "anthropic",
+      "model": "claude-sonnet-5-5",
+      "zeroRetention": true
+    },
+    "local-coder": {
+      "tier": "local",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:7b",
+      "zeroRetention": true
+    },
+    "local-small": {
+      "tier": "local",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:1.5b",
+      "zeroRetention": true
+    },
+    "local-reviewer": {
+      "tier": "local",
+      "provider": "ollama",
+      "model": "llama3.1:8b",
+      "zeroRetention": true
+    },
+    "local-embed": {
+      "tier": "local",
+      "provider": "ollama",
+      "model": "nomic-embed-text",
+      "zeroRetention": true
+    }
+  },
+  "taskRoutes": {
+    "architecture-reasoning": [
+      "claude-frontier"
+    ],
+    "intent": [
+      "claude-mid",
+      "local-coder"
+    ],
+    "code-generation": [
+      "claude-mid",
+      "local-coder"
+    ],
+    "adversarial-review": [
+      "claude-frontier",
+      "local-reviewer"
+    ],
+    "embedding": [
+      "local-embed"
+    ]
+  },
+  "dataBoundaries": {
+    "public": [
+      "frontier",
+      "mid",
+      "local"
+    ],
+    "internal": [
+      "frontier",
+      "mid",
+      "local"
+    ],
+    "proprietary-source": [
+      "local"
+    ],
+    "financial": [
+      "local"
+    ]
+  },
+  "$comment": "Route order is maintained by the parity harness (pnpm eval --parity <task>). intent moved off local-small after fixtures/parity/intent-local-small-vs-local-coder.txt: 67% vs 100%."
+}

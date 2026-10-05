@@ -1,3 +1,4 @@
+import { guardedFetch } from "../router/egress";
 /** Turns text into vectors. Two implementations: Ollama (the real one) and a labelled offline fallback. */
 export interface Embedder {
   readonly name: string;
@@ -11,7 +12,11 @@ export const OLLAMA_URL = process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
 /** True when an Ollama server answers on localhost and has the model pulled. */
 export async function ollamaHasModel(model: string): Promise<boolean> {
   try {
-    const response = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(800) });
+    const response = await guardedFetch(
+      `${OLLAMA_URL}/api/tags`,
+      { signal: AbortSignal.timeout(800) },
+      { purpose: "embedding model availability check", dataClass: "public" },
+    );
     if (!response.ok) {
       return false;
     }
@@ -32,11 +37,16 @@ export class OllamaEmbedder implements Embedder {
   }
 
   private async embed(inputs: string[]): Promise<Float32Array[]> {
-    const response = await fetch(`${OLLAMA_URL}/api/embed`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: this.model, input: inputs }),
-    });
+    const response = await guardedFetch(
+      `${OLLAMA_URL}/api/embed`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ model: this.model, input: inputs }),
+      },
+      // Embedding input is raw repository source: proprietary, so it only ever goes to the local model.
+      { purpose: "embedding", dataClass: "proprietary-source" },
+    );
     if (!response.ok) {
       throw new Error(`Ollama embed failed with ${response.status}`);
     }

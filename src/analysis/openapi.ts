@@ -337,7 +337,11 @@ export function literalValue(expression: Expression): { value: unknown } | undef
 
 /** Validates a literal body against the contract schema with ajv. Returns ajv's messages. */
 export function validateLiteral(contract: Contract, schema: JsonSchema, value: unknown): string[] {
-  const ajv = new Ajv({ strict: false, allErrors: true });
+  const ajv = new Ajv({
+    strict: false,
+    allErrors: true,
+    formats: { "date-time": /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/ },
+  });
   ajv.addSchema({ $id: "contract", components: contract.document.components ?? {} });
   const rewritten = JSON.parse(JSON.stringify(schema).replaceAll('"#/components/', '"contract#/components/')) as object;
   const validate = ajv.compile(rewritten);

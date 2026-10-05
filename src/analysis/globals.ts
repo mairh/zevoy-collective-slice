@@ -2,6 +2,20 @@ import { Node } from "ts-morph";
 
 const GLOBAL_OBJECTS = new Set(["window", "globalThis", "self", "global", "frames", "parent", "top"]);
 
+/** Host objects whose members include network or navigation capabilities. */
+const CAPABILITY_OBJECTS = new Set([...GLOBAL_OBJECTS, "navigator", "document", "location", "Reflect"]);
+
+/**
+ * True when a node is (a cast of) a global or capability-bearing host object: `window`, `globalThis`,
+ * `(self as X)`, `navigator`, `document`. Computed lookups on these cannot be resolved statically.
+ */
+export function isGlobalObject(node: Node): boolean {
+  if (Node.isParenthesizedExpression(node) || Node.isAsExpression(node) || Node.isNonNullExpression(node)) {
+    return isGlobalObject(node.getExpression());
+  }
+  return Node.isIdentifier(node) && CAPABILITY_OBJECTS.has(node.getText());
+}
+
 function literalKey(node: Node): string | null {
   if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
     return node.getLiteralText();

@@ -107,6 +107,11 @@ export function apiContractGate(ctx: GateContext): GateResult {
       continue;
     }
     for (const call of extractHttpCalls(sourceFile, options)) {
+      // The sanctioned client's own fetch is the transport, not a call: its URL is a parameter, and every real
+      // call through it is validated at its call site.
+      if (change.path === options.apiClientModule && call.via === "fetch") {
+        continue;
+      }
       const result = checkCall(call, ctx.contract);
       findings.push(...result.findings);
       if (result.verified) {

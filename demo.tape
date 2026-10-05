@@ -14,7 +14,7 @@ Hide
 Type "clear" Enter
 Show
 
-Type "pnpm -s demo --pace 1100"
+Type "pnpm -s demo --pace 900"
 Sleep 600ms
 Enter
-Sleep 88s
+Sleep 92s

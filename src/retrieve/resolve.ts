@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import picomatch from "picomatch";
 import type { SliceConfig } from "../config";
+import { incidentsFor } from "../ingest/docs";
 import type { Embedder } from "../ingest/embed";
 import { exceedsClearance } from "../ingest/graph";
 import type { GraphNode, GraphStore } from "../stores/graph";
@@ -24,6 +25,10 @@ export interface RetrievedContext {
   owners: GraphNode[];
   /** Financial code nodes outside the write scope. Reachable in the graph, deliberately not shown to the model. */
   withheld: GraphNode[];
+  /** Incident write-ups and know-how interviews that mention the target: what broke last time it changed. */
+  documents: GraphNode[];
+  /** The text of those documents, for the implementer prompt. */
+  history: string[];
   files: ContextFile[];
 }
 
@@ -55,18 +60,30 @@ export async function resolveContext(query: string, deps: ResolveDeps): Promise<
   const denied = config.allowlist.deny.map((glob) => picomatch(glob));
   const canWrite = (path: string) => writable.some((test) => test(path)) && !denied.some((test) => test(path));
 
-  const seeds = await deps.vectors.query(await deps.embedder.embedQuery(query), deps.topK ?? 8);
+  const seeds = await deps.vectors.query(await deps.embedder.embedQuery(query), deps.topK ?? 16);
   let target: GraphNode | undefined;
-  for (const hit of seeds) {
-    const node = await graph.getNode(hit.nodeId);
-    // Type and constant chunks hang off their module; resolve them to the component that module defines.
-    const candidates =
-      node?.label === "Module"
-        ? await graph.findNodes({ label: "Component", sourceFile: node.sourceFile })
-        : node
-          ? [node]
-          : [];
-    target = candidates.find((candidate) => candidate.label === "Component" && canWrite(candidate.sourceFile));
+  // Pass 1: code hits only. Pass 2: documents (incidents, ADRs) resolve to the components they mention. Code wins
+  // because an incident write-up mentions many components; it is evidence, not a pointer.
+  for (const pass of ["code", "documents"] as const) {
+    for (const hit of seeds) {
+      const node = await graph.getNode(hit.nodeId);
+      if (!node || (node.label === "Document") !== (pass === "documents")) {
+        continue;
+      }
+      let candidates: GraphNode[] = [node];
+      if (node.label === "Module") {
+        // Type and constant chunks hang off their module; resolve them to the component that module defines.
+        candidates = await graph.findNodes({ label: "Component", sourceFile: node.sourceFile });
+      } else if (node.label === "Document") {
+        candidates = (await graph.neighbors(node.id, { direction: "out", types: ["MENTIONS"] })).map(
+          ({ node: mentioned }) => mentioned,
+        );
+      }
+      target = candidates.find((candidate) => candidate.label === "Component" && canWrite(candidate.sourceFile));
+      if (target) {
+        break;
+      }
+    }
     if (target) {
       break;
     }
@@ -129,6 +146,7 @@ export async function resolveContext(query: string, deps: ResolveDeps): Promise<
     });
   }
 
+  const documents = target ? await incidentsFor(graph, target.id) : [];
   return {
     query,
     seeds,
@@ -138,6 +156,11 @@ export async function resolveContext(query: string, deps: ResolveDeps): Promise<
     contracts: shared.filter((node) => node.label === "Endpoint"),
     owners: shared.filter((node) => node.label === "Owner"),
     withheld,
+    documents,
+    history: documents.map((document) => {
+      const path = join(deps.root, document.sourceFile);
+      return existsSync(path) ? `--- ${document.sourceFile}\n${readFileSync(path, "utf8")}` : `--- ${document.name}`;
+    }),
     files,
   };
 }

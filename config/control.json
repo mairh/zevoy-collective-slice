@@ -1,0 +1,11 @@
+{
+  "killSwitch": false,
+  "breaker": { "maxConsecutiveBlocks": 3 },
+  "canary": {
+    "stages": [1, 10, 50, 100],
+    "minSamples": 200,
+    "maxErrorRateDelta": 0.005,
+    "maxP95LatencyRatio": 1.2,
+    "maxConversionDrop": 0.02
+  }
+}

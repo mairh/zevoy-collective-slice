@@ -49,3 +49,58 @@ describe("visual-regression gate", () => {
     expect(result.findings[0]?.rule).toBe("baseline-drift");
   });
 });
+
+describe("render sandbox (defence in depth, independent of the static gates)", () => {
+  const empty = "src/ui/cards/CardEmptyState.tsx";
+
+  it("refuses to bundle an import that leaves the target repo", async (context) => {
+    if (!chromeAvailable) {
+      context.skip();
+    }
+    const { readFileSync } = await import("node:fs");
+    const { TARGET_ROOT } = await import("../src/config");
+    const { renderFixture } = await import("../src/visual/harness");
+    const source = readFileSync(`${TARGET_ROOT}/${empty}`, "utf8");
+    const escaped = `import { REPO_ROOT } from "../../../../src/config";\nconsole.log(REPO_ROOT);\n${source}`;
+    const browser = await launchBrowser();
+    try {
+      await expect(
+        renderFixture(browser, TARGET_ROOT, "src/ui/cards/CardEmptyState.fixture.tsx", new Map([[empty, escaped]])),
+      ).rejects.toThrow(/import outside the target repo refused/);
+    } finally {
+      await browser.close();
+    }
+  });
+
+  it("blocks WebSocket connections from rendered agent code", async (context) => {
+    if (!chromeAvailable) {
+      context.skip();
+    }
+    const { createServer } = await import("node:http");
+    const { readFileSync } = await import("node:fs");
+    const { TARGET_ROOT } = await import("../src/config");
+    const { renderFixture } = await import("../src/visual/harness");
+    let upgrades = 0;
+    const server = createServer();
+    server.on("upgrade", (_request, socket) => {
+      upgrades += 1;
+      socket.destroy();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    const port = typeof address === "object" && address !== null ? address.port : 0;
+    const source = readFileSync(`${TARGET_ROOT}/${empty}`, "utf8");
+    const probe = `new WebSocket("ws://127.0.0.1:${port}/exfil");\n${source}`;
+    const browser = await launchBrowser();
+    try {
+      await expect(
+        renderFixture(browser, TARGET_ROOT, "src/ui/cards/CardEmptyState.fixture.tsx", new Map([[empty, probe]])),
+      ).rejects.toThrow(/Content Security Policy/);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(upgrades).toBe(0);
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  });
+});

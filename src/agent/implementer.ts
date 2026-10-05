@@ -3,12 +3,11 @@ import { join } from "node:path";
 import { createTwoFilesPatch } from "diff";
 import type { Contract } from "../analysis/openapi";
 import { REPO_ROOT } from "../config";
-import { OLLAMA_URL, ollamaHasModel } from "../ingest/embed";
 import type { RetrievedContext } from "../retrieve/resolve";
+import { ollamaAvailable, ollamaChatJson } from "../router/ollama";
+import { type RouteDecision, type RouterConfig, route } from "../router/router";
 import { type ChangeSet, parseChangeSet, pathEscapesRoot } from "../workspace/changeSet";
 import { buildImplementerPrompt, PROMPT_VERSION } from "./prompt";
-
-export const DEFAULT_MODEL = process.env.ZEVOY_MODEL ?? "qwen2.5-coder:7b";
 
 export interface ChangeRequest {
   id: string;
@@ -29,6 +28,8 @@ export interface ImplementerResult {
   mode: "live" | "replay";
   meta: RecordingMeta;
   summary: string;
+  /** Live: the routing decision used. Replay: the decision the router would make now (null if none can serve). */
+  route: RouteDecision | null;
 }
 
 export interface ImplementerOptions {
@@ -36,10 +37,12 @@ export interface ImplementerOptions {
   root: string;
   contract: Contract;
   record?: boolean;
-  model?: string;
+  router: RouterConfig;
+  /** Acceptance criteria from the intent agent, passed to the model. */
+  acceptance?: string[];
 }
 
-interface ModelFile {
+export interface ModelFile {
   path: string;
   content: string;
 }
@@ -49,7 +52,8 @@ function recordingPaths(id: string) {
   return { patch: join(dir, `${id}.patch`), meta: join(dir, `${id}.meta.json`) };
 }
 
-function parseModelOutput(raw: string): { summary: string; files: ModelFile[] } {
+/** Parses implementer JSON into whole-file answers. Throws on malformed JSON. */
+export function parseModelOutput(raw: string): { summary: string; files: ModelFile[] } {
   const parsed: unknown = JSON.parse(raw);
   if (typeof parsed !== "object" || parsed === null) {
     throw new Error("implementer returned non-object JSON");
@@ -92,31 +96,10 @@ export function filesToPatch(root: string, files: ModelFile[]): string {
     .join("");
 }
 
-async function generate(model: string, system: string, user: string): Promise<string> {
-  const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model,
-      stream: false,
-      format: "json",
-      options: { temperature: 0, seed: 7, num_ctx: 16384 },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Ollama chat failed with ${response.status}`);
-  }
-  const body = (await response.json()) as { message?: { content?: string } };
-  return body.message?.content ?? "";
-}
-
 /**
  * The implementer: change request plus graph-resolved context in, unified diff out. Nothing it produces is trusted;
- * the diff goes straight to the gates. Replay mode reads a committed recording and says so.
+ * the diff goes straight to the gates. It reads raw repository source, so it is routed as proprietary-source data:
+ * self-hosted tiers only. Replay mode reads a committed recording and says so.
  */
 export async function implement(
   request: ChangeRequest,
@@ -130,28 +113,32 @@ export async function implement(
     }
     const meta = JSON.parse(readFileSync(paths.meta, "utf8")) as RecordingMeta;
     const patch = readFileSync(paths.patch, "utf8");
+    const decision = await route("code-generation", "proprietary-source", options.router, ollamaAvailable).catch(
+      () => null,
+    );
     return {
       changeSet: parseChangeSet(request.id, patch, options.root),
       mode: "replay",
       meta,
       summary: meta.note ?? "",
+      route: decision,
     };
   }
 
-  const model = options.model ?? DEFAULT_MODEL;
-  if (!(await ollamaHasModel(model))) {
-    throw new Error(
-      `Live mode needs Ollama at ${OLLAMA_URL} with ${model}. Install Ollama, then: ollama pull ${model}`,
-    );
-  }
-  const prompt = buildImplementerPrompt(request.request, context, options.contract);
-  const raw = await generate(model, prompt.system, prompt.user);
+  const decision = await route("code-generation", "proprietary-source", options.router, ollamaAvailable);
+  const prompt = buildImplementerPrompt(request.request, context, options.contract, options.acceptance ?? []);
+  const raw = await ollamaChatJson(decision.model, prompt, {
+    agent: "implementer",
+    changeId: request.id,
+    dataClass: "proprietary-source",
+    maxTokens: 6000,
+  });
   const output = parseModelOutput(raw);
   const patch = filesToPatch(options.root, output.files);
   const meta: RecordingMeta = {
     requestId: request.id,
     provenance: "ollama",
-    model,
+    model: decision.model.model,
     promptVersion: PROMPT_VERSION,
     recordedAt: new Date().toISOString(),
     note: output.summary,
@@ -160,5 +147,11 @@ export async function implement(
     writeFileSync(paths.patch, patch);
     writeFileSync(paths.meta, `${JSON.stringify(meta, null, 2)}\n`);
   }
-  return { changeSet: parseChangeSet(request.id, patch, options.root), mode: "live", meta, summary: output.summary };
+  return {
+    changeSet: parseChangeSet(request.id, patch, options.root),
+    mode: "live",
+    meta,
+    summary: output.summary,
+    route: decision,
+  };
 }

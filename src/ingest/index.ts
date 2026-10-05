@@ -6,6 +6,7 @@ import { type SliceConfig, STATE_DIR } from "../config";
 import { type GraphStats, InMemoryGraphStore } from "../stores/graph";
 import { SqliteVecStore, type VectorStore } from "../stores/vectors";
 import { type Chunk, chunkModules } from "./chunk";
+import { chunkDocs, linkDocs, parseDocs } from "./docs";
 import { type Embedder, selectEmbedder } from "./embed";
 import { buildGraph, commitShaOf } from "./graph";
 import { type ParsedModule, parseRepo } from "./parse";
@@ -23,6 +24,7 @@ export interface IngestResult {
   commitSha: string;
   modules: ParsedModule[];
   chunks: Chunk[];
+  documents: number;
   graph: InMemoryGraphStore;
   vectors: VectorStore;
   embedder: Embedder;
@@ -31,7 +33,7 @@ export interface IngestResult {
   durationMs: number;
 }
 
-/** Parse, build the graph, chunk on symbol boundaries, embed, index. One pass, all local. */
+/** Parse, build the graph, link docs, chunk on symbol and heading boundaries, embed, index. One pass, all local. */
 export async function ingest(options: IngestOptions): Promise<IngestResult> {
   const started = performance.now();
   const stateDir = options.stateDir ?? STATE_DIR;
@@ -42,10 +44,12 @@ export async function ingest(options: IngestOptions): Promise<IngestResult> {
 
   const graph = new InMemoryGraphStore();
   await buildGraph(graph, { root: options.root, modules, contract, risk: options.config.risk });
+  const docs = parseDocs(options.root);
+  await linkDocs(docs, graph, commitShaOf(options.root));
   graph.save(join(stateDir, "graph.json"));
 
   const sensitivity = new Map((await graph.findNodes({})).map((node) => [node.id, node.sensitivity]));
-  const chunks = chunkModules(modules, (id) => sensitivity.get(id) ?? "internal");
+  const chunks = [...chunkModules(modules, (id) => sensitivity.get(id) ?? "internal"), ...chunkDocs(docs)];
 
   const embedder = await selectEmbedder(options.embedder ?? "auto");
   const vectors = await embedder.embedDocuments(chunks.map((chunk) => chunk.text));
@@ -58,6 +62,7 @@ export async function ingest(options: IngestOptions): Promise<IngestResult> {
     commitSha: commitShaOf(options.root),
     modules,
     chunks,
+    documents: docs.length,
     graph,
     vectors: store,
     embedder,

@@ -5,8 +5,10 @@ $ pnpm demo --only R3
 
 [1/1] Change request: "Fetch the user's available balance and show it on the card settings panel"
       Retrieved 19 context nodes from graph (11 components, 4 functions, 3 contracts, 1 owner)
-      Target CardSettingsPanel · withheld 1 financial node outside write scope: TransactionList
-      Implementer: diff produced, 28 lines, 2 files  [replay · hand-authored · implementer.v1]
+      Target CardSettingsPanel · withheld 1 financial node outside write scope: TransactionList · history: Know-how interview - cards UI with Aino Virtanen; INC-2026-06-14 - Card monthly limit shown one cent low
+      Intent: Add functionality to fetch and display the user's available balance on the CardSettingsPanel. · 4 criteria  [replay · qwen2.5-coder:7b]
+      Implementer: diff produced, 28 lines, 2 files  [replay · hand-authored]
+      Router: intent → local/qwen2.5-coder:7b · implement → local/qwen2.5-coder:7b · refused: claude-mid: mid tier not permitted for proprietary-source data
 
       GATE write-scope ........................... PASS  src/ui/cards/ only
       GATE ast-validation ........................ FAIL
@@ -16,76 +18,115 @@ $ pnpm demo --only R3
              response fields read with no schema to check them against: available, currency  (src/ui/cards/useAvailableBalance.ts:13)
       GATE visual-regression ..................... SKIP  not run: blocked upstream
              static gates failed, so the diff was never executed
+      Review: not run. Gates blocked the diff, so no model time was spent reviewing it.
       Risk tier: HIGH (money-rendering component touched: CardSettingsPanel)
 
       BLOCKED. Diff discarded. No human review consumed. No deploy attempted.
+      Release: none · breaker src/ui/cards/ 1/3 · kill switch off
 ```
 
-The full `pnpm demo` runs three requests and ends with:
+The full `pnpm demo` runs three requests (about 84 s recorded: [`demo.mp4`](demo.mp4)) and ends with:
 
 ```
 Summary
   R1  LOW    4/4 PASS         → autonomous-eligible
   R2  HIGH   4/4 PASS         → named approver @aino.virtanen
   R3  HIGH   2 FAIL, 1 SKIP   → blocked before any human saw it
+
+Audit    hash chain verified · 38 events from 3 runs appended
+Egress   16 outbound calls to 127.0.0.1:11434 · 0 refused · allow-list 127.0.0.1, localhost, ::1
 ```
 
 ## Why the gates matter more than the generation
 
-Any model can write a React component. What a fintech cannot accept is a model that invents a balance endpoint,
-calls `fetch` around the API layer, or quietly edits a spending-limit form, and then depends on a tired reviewer to
-notice. Everything that decides here is ordinary code: globs, a ts-morph AST walk, an OpenAPI matcher with ajv,
-pixel comparison in headless Chrome, and a risk classifier that reads the AST and the code graph. None of it asks a
-model for an opinion, so the same diff always gets the same verdict. That shifts the system's trust from the
-generator to the control plane, which is where an auditor can inspect it. In R3, the retrieved context contained
-three card contracts and no balance endpoint, which is exactly the situation in which a model invents one. The recorded
-diff is a hand-authored stand-in for that failure. Two independent gates caught it, with file and line, before any
-person spent time on it. That is the claim this repo exists to prove.
+Any model can write a React component. A fintech cannot accept a model that invents a balance endpoint, calls
+`fetch` around the API layer, or quietly edits a spending-limit form, and then relies on a tired reviewer to notice.
+Everything that decides here is ordinary code: globs, a ts-morph AST walk with the type checker, an OpenAPI matcher
+with ajv, pixel comparison in headless Chrome, a risk classifier over the AST and the code graph, a circuit breaker,
+and a hash-chained audit log. None of it asks a model for an opinion, so the same diff always gets the same verdict.
+That moves trust from the generator to the control plane, where an auditor can inspect it. In R3, the retrieved
+context held three card contracts, no balance endpoint, and an incident write-up saying balances are not exposed to
+the card UI. That is exactly the situation in which a model invents an endpoint. The recorded diff is a hand-authored
+stand-in for that failure. Two independent gates caught it, with file and line, before anyone spent time on it.
 
 ## Architecture
 
-> Placeholder: replace with the diagram from the brief.
+The same shape as the brief ([docs/architectural-brief.pdf](docs/architectural-brief.pdf)), with what this slice
+implements marked in each box.
 
 ```mermaid
-flowchart LR
-  subgraph Ingest["Ingest (offline)"]
-    R[target repo] --> P[ts-morph parse]
-    P --> G[(code graph<br/>Component · Module · Function<br/>Endpoint · Owner)]
-    P --> C[symbol-bounded chunks]
-    C --> E[embed<br/>nomic-embed-text / hash fallback]
-    E --> V[(sqlite-vec)]
-    O[openapi.yaml] --> G
-    CO[CODEOWNERS] --> G
+flowchart TB
+  subgraph SRC["SOURCES"]
+    GH["code: target-app/src"]
+    DOCS["docs: ADRs · incidents · know-how interview"]
+    OAS["OpenAPI contract · CODEOWNERS"]
   end
-  CR[change request] --> RS[graph-resolved retrieval<br/>vector seeds → graph walk<br/>financial nodes withheld]
-  V --> RS
-  G --> RS
-  RS --> I[implementer<br/>qwen2.5-coder · prompt implementer.v1]
-  I -->|unified diff| CP
-  subgraph CP["Deterministic control plane"]
-    W[write-scope] --> A[ast-validation] --> K[api-contract] --> VR[visual-regression]
-    VR --> RT[risk tier<br/>AST + graph]
+  subgraph ING["INGEST (local)"]
+    AST["ts-morph AST parse"]
+    CH["chunk on symbol and heading boundaries"]
+    EMB["embed: nomic-embed-text on Ollama<br/>(lexical fallback when offline)"]
   end
-  CP -->|any FAIL| B[BLOCKED<br/>no human time spent]
-  CP -->|HIGH| H[named approver<br/>from CODEOWNERS]
-  CP -->|MEDIUM or SKIP| HR[human review]
-  CP -->|LOW and 4 PASS| AU[autonomous-eligible]
+  subgraph KL["KNOWLEDGE LAYER"]
+    VEC[("vectors: sqlite-vec<br/>(Astra DB in production)")]
+    GR[("code graph: in-memory<br/>(Neo4j in production)<br/>calls · renders · imports · contracts · owners · mentions")]
+  end
+  subgraph RT["ROUTER: sensitivity fail-closed → task class → cost"]
+    FR["frontier: Claude (configured, refused: no client, not on egress allow-list)"]
+    MID["mid: Claude (configured, refused for proprietary source)"]
+    LOC["self-hosted: qwen2.5-coder 7B/1.5B · llama3.1 8B"]
+  end
+  subgraph SW["AGENT SWARM: checkpointed state machine, mocked back end, localhost-only egress"]
+    I["intent"] --> IM["implementer"] --> REV["adversarial reviewer<br/>(different model family)"]
+  end
+  subgraph CP["DETERMINISTIC CONTROL PLANE"]
+    G1["write-scope"] --> G2["AST validation + compile"] --> G3["API contract"] --> G4["visual regression"]
+    G4 --> RK["risk tier from AST + graph"]
+    EV["golden set + parity harness"]
+    AU["hash-chained audit trail"]
+  end
+  subgraph REL["RELEASE (decision engines; deploy is simulated)"]
+    HG["human gate: named approver"]
+    CB["circuit breaker · kill switch"]
+    CN["canary: promote / hold / rollback"]
+  end
+  SRC --> ING --> KL --> SW
+  RT -.serves.-> SW
+  SW -->|diff| CP --> REL
 ```
 
-| Gate | What it proves | How |
-|---|---|---|
-| write-scope | The diff only touches `src/ui/**`; never ledger, transactions, auth, generated code, harness fixtures or tests | picomatch globs; deny beats allow; paths that escape the repo are never read |
-| ast-validation | The post-diff code compiles, and the diff introduces no raw network call, undeclared dependency, eval, computed import, `dangerouslySetInnerHTML`, suppression, direct banking-client import or env read | ts-morph walk of pre- and post-diff files; callees resolved through the type checker, so `window["fetch"]`, `self.fetch` and `const f = fetch` are caught; only what the diff *introduces* counts |
-| api-contract | Every HTTP call hits a real path with an allowed method, a schema-valid body, and only reads declared response fields | Calls through `src/api/*` wrappers are resolved with the type checker; body types are compared to the schema; literal bodies are validated with ajv |
-| visual-regression | Elements the diff kept look identical; the harness still matches its committed baseline | esbuild bundles each affected fixture with the diff overlaid in memory; headless Chrome with all network aborted; pixelmatch per element |
-| risk tier | LOW / MEDIUM / HIGH with reasons and named approvers | Money-rendering components, submit forms, amount fields, permission checks, financial endpoints, state shape, and a logic fingerprint that ignores copy and styling |
+**No agent holds a credential, and no network path leaves localhost.** Every outbound call goes through
+`guardedFetch`, which refuses hosts outside `config/router.json`'s allow-list before a socket opens and logs host,
+purpose and data class.
 
-The graph carries `sourceFile`, `commitSha`, `ingestedAt` and `sensitivity` on every node. Retrieval uses sensitivity
-to withhold financial code outside the write scope (`TransactionList` above); the classifier uses it to escalate.
+## What the job description asks for, and where it is
+
+| Job description | In this repo | Status |
+|---|---|---|
+| **Hybrid LLM pipeline**: route between commercial models for reasoning and open-weight models for high-volume local work | `src/router/router.ts`, `config/router.json`: sensitivity first (fail-closed), then task class, then cost/availability. Raw source and financial data are self-hosted only. Commercial tiers are configured and routed to, then refused with a reason. | Built. Commercial calls are not made: no API keys, and the egress allow-list is localhost-only. |
+| Routing decided by evidence, not guesses | `pnpm eval --parity <task>` runs golden requests on two tiers. On real runs, qwen2.5-coder:1.5b produced valid intent output for 67% of requests and the 7B for 100%, so intent was moved up to the 7B: [`fixtures/parity/`](fixtures/parity/) | Built and used |
+| **Knowledge graph and RAG**: code, docs, personnel know-how | `src/ingest/`: AST graph (Component · Module · Function · Endpoint · Owner · Document), symbol-bounded chunks, ADRs, incident write-ups and a structured know-how interview linked to the code they mention. Retrieval is graph-resolved and permission-aware, and surfaces "what broke last time". | Built (a webhook-driven continuous ingest service is not) |
+| **Agent swarm**: generate, test, deploy, monitor; adapt to user intent and back-end state changes | `src/swarm/orchestrator.ts`: retrieve → intent → implement → gates → review → decide, checkpointed after every step so a resumed run never replays side effects. `pnpm impact` reads a back-end contract change and turns it into change requests for affected components and owners. | Built: intent, implementer and adversarial reviewer. Test generation and the monitor agent are not built. |
+| **Deterministic control plane**: circuit breakers, API contract validators, isolated sandboxes, human-in-the-loop escalation | Four gates (`src/gates/`), risk tiering, a repeated-failure breaker and kill switch (`src/release/`), named approvers from CODEOWNERS, a network-blocked render sandbox, and agent failures that fail safe | Built. The render sandbox is a browser page under a `default-src 'none'` CSP, with HTTP and WebSocket interception on top and a bundler that refuses imports from outside the target repo. Not a container. |
+| Agents cannot push hallucinated code, break core banking connections or execute unauthorized transactions | Hallucinated endpoints, raw network calls, banking-client imports and ledger/auth/transaction paths are blocked. 34 golden diffs, including real qwen output (one clean pass, two blocked for not compiling) and eleven evasion attempts found by independent reviews. | Built and tested |
+| **Security and compliance**: data moats away from public training sets | Proprietary source and embeddings never leave the machine. Commercial tiers require zero-retention terms. Every egress attempt is logged, and redirects are refused. A hash-chained audit trail covers every agent action, model, gate, verdict and breaker change (`pnpm trail verify`). | Built. The chain detects edited or deleted entries; detecting whole-file replacement needs an external anchor, which is not built. |
+| Canary and rollback | `pnpm release canary --simulate healthy\|regression`: promote/hold/rollback over metric windows | Decision engine built; metrics are simulated and labelled |
+
+## Brief → code
+
+| Brief section | Code |
+|---|---|
+| 1.1 Hybrid routing, parity harness | `src/router/`, `src/eval/parity.ts`, `config/router.json` |
+| 1.2 Vectors plus a graph; provenance on every node | `src/ingest/`, `src/stores/`; every node carries `sourceFile`, `commitSha`, `ingestedAt`, `sensitivity` |
+| 1.3 Keeping the IP in | `src/router/egress.ts`, local embeddings, graph-resolved minimal context (`src/retrieve/resolve.ts`) |
+| 2.1 Swarm: intent, implementer, adversarial reviewer on a different tier | `src/agent/`, `src/swarm/orchestrator.ts` |
+| 2.2 Gates, risk tiering and HITL, evaluation harness, circuit breaker, audit trail | `src/gates/`, `src/eval/golden.ts`, `src/release/`, `src/audit/log.ts` |
+| 3 Day 30 / 60 / 90 | Day 30: `pnpm ingest` + retrieval + router. Day 60: gates in CI (`pnpm test`, `pnpm eval`) + implementer and reviewer. Day 90: R1's path is the "one low-risk surface deploying autonomously", behind canary, breaker and kill switch (simulated). |
+| 4 Cost attributed per agent and change | `src/router/meter.ts`: tokens and latency per agent and change, printed by the demo in live mode |
 
 ## How to run
 
-Needs Node 22.5+, pnpm and Google Chrome (for the visual gate; or set `CHROME_PATH`).
+Needs Node 22.5+, pnpm and Google Chrome (or set `CHROME_PATH`). Ollama is optional: without it, embeddings use a
+labelled lexical fallback and agents replay their recordings.
 
 ```bash
 pnpm install
@@ -99,62 +140,62 @@ pnpm demo
 pnpm test
 ```
 
-Other entry points:
-
 | Command | What it does |
 |---|---|
-| `pnpm demo --only R3` | One request |
-| `pnpm demo --pace 120` | 120 ms between lines, for a screen recording |
-| `pnpm gates <fixture or .patch>` | Run the control plane on any diff without the agent, e.g. `pnpm gates contract-wrong-method` |
-| `pnpm ingest --repo <path>` | Ingest any TS/React repo and print graph counts |
-| `pnpm baseline` | Re-render committed visual baselines (only after a human has reviewed the change) |
-| `pnpm fixtures` | Regenerate every fixture diff from asserted search/replace edits |
+| `pnpm demo --live` | Run every agent live on local Ollama (`qwen2.5-coder:7b`, `llama3.1:8b`, `nomic-embed-text`) |
+| `pnpm demo --live-agents intent,reviewer --record` | Re-record some agents, replay the rest |
+| `pnpm demo --resume <runId>` | Resume a checkpointed run from its last completed step |
+| `ZEVOY_KILL_SWITCH=1 pnpm demo` | Kill switch: nothing is released autonomously |
+| `pnpm eval` | Golden set: every committed diff must get exactly its expected verdict, tier and failing gates |
+| `pnpm eval --parity intent` | Parity harness between two local tiers |
+| `pnpm impact` | Back-end contract change → affected functions, components, owners and change requests |
+| `pnpm gates <fixture or .patch>` | The control plane on any diff, without agents |
+| `pnpm release breaker status` · `pnpm release canary --simulate regression` | Breaker state and canary decisions |
+| `pnpm trail verify` · `pnpm trail show <runId>` | Verify the hash chain; replay one run's events |
+| `pnpm ingest --repo <path>` | Ingest any TS/React repo (verified on a 373-file Next.js app) |
+| `vhs demo.tape` | Re-record the capture |
 
-**Live generation.** By default the demo replays the diffs in `fixtures/recorded/`. Those diffs were **written by
-hand** to stand in for model output, and their `.meta.json` and the demo output both say so. To run the real agent:
-
-```bash
-brew install ollama
-```
-
-```bash
-ollama pull qwen2.5-coder:7b && ollama pull nomic-embed-text
-```
+To install the local models:
 
 ```bash
-pnpm demo --live --record
+brew install ollama && ollama pull qwen2.5-coder:7b && ollama pull llama3.1:8b && ollama pull nomic-embed-text
 ```
 
-With Ollama up, the embedder switches from the lexical fallback to `nomic-embed-text` automatically. Live output
-varies run to run; the gates' verdict on any given diff does not.
+## Who wrote what
 
-**What a real 7B model actually did.** On the first live run, `qwen2.5-coder:7b` produced a clean R1 copy change
-(four PASSes, LOW). For R2 and R3 it produced code that does not compile: double-escaped newlines inside JSX, and
-`formatMoney` and `toMinorUnits` used without imports. ast-validation blocks both with exact lines. Those diffs are
-committed as `fixtures/diffs/live-qwen-R2.patch` and `live-qwen-R3.patch`, the only fixtures that are genuine model
-output. They are why the compile check exists: before it, three of four gates passed a file that would not parse.
+| Artefact | Produced by |
+|---|---|
+| Implementer diffs R1–R3 (`fixtures/recorded/R*.patch`) | **Hand-authored**, to show the failure modes reliably. Labelled in the demo and in `.meta.json`. |
+| Intent and reviewer outputs (`fixtures/recorded/R*.{intent,reviewer}.json`) | **Real model output**: qwen2.5-coder:7b and llama3.1:8b via Ollama |
+| `fixtures/diffs/live-qwen-R1.patch` | **Real model output** from qwen2.5-coder:7b: passes all four gates, LOW, autonomous-eligible |
+| `fixtures/diffs/live-qwen-R2.patch`, `live-qwen-R3.patch` | **Real model output** from qwen2.5-coder:7b. Neither compiles; ast-validation blocks both. |
+| `fixtures/parity/*.txt` | Real parity runs |
 
-**Recording.** `vhs demo.tape` writes `demo.mp4` and `demo.gif` (about 84 s, ending on the summary).
+What a real 7B model actually did: R1 passed all four gates (committed as `live-qwen-R1.patch`). For R2 and R3 it produced code that does not compile
+(double-escaped newlines inside JSX, helpers used without imports). That is why ast-validation includes a compile
+check: before it existed, three of four gates passed a file that would not parse.
 
 ## What is deliberately not built
 
-- **A multi-agent swarm.** One implementer only. The brief argues the roles; this slice proves the gates.
-- **Deployment, canary and circuit breaker.** "Eligible for autonomous deploy" is a verdict; nothing is deployed.
-- **Personnel know-how ingestion.** Owners come from CODEOWNERS only.
-- **Neo4j and Astra DB.** `GraphStore` and `VectorStore` are async interfaces shaped for them (the comments sketch
-  the Cypher and `$vector` mappings), but only the in-memory graph and `sqlite-vec` are implemented. Untested adapters
-  would be a quiet version of a faked pass.
-- **A live-model recording.** Ollama was not available on the build machine. Until `--live --record` is run, every
-  demo diff is a labelled, hand-authored stand-in.
-- **Semantic retrieval offline.** The fallback embedder is lexical feature hashing. It is good enough to find
-  `CardSettingsPanel` for these requests, and it is labelled whenever it runs.
-- **Visual coverage beyond fixtures.** Only components with a `*.fixture.tsx` harness are rendered. A changed
-  component without one makes the gate SKIP (human review), never PASS.
+- **Real deployment, a live canary and the monitor agent.** The breaker, kill switch and canary are deterministic
+  decision engines with tests; there is no deploy target or traffic to watch.
+- **Commercial model calls.** Claude tiers are configured and routed, but the slice has no client and no egress
+  path to them. Every demo shows them refused with the reason.
+- **Neo4j and Astra DB adapters.** The `GraphStore` and `VectorStore` interfaces are async and shaped for them, but
+  untested adapters would be a quiet version of a faked pass.
+- **Continuous ingestion on GitHub webhooks.** Ingest is a fast full rebuild (about 2.5 s here) rather than an
+  incremental, webhook-driven service.
+- **Test-generation agent, Next.js, container sandboxes.** The target app is plain React 19. The render sandbox is
+  Chrome with the network aborted, not a VM.
+- **Personnel know-how beyond what was deliberately captured.** One structured interview is ingested, which is the
+  point the brief makes: tacit knowledge does not vectorise itself.
+- **External anchoring of the audit trail.** The hash chain catches in-place edits and deleted entries. A regulator-grade
+  trail also anchors the head hash somewhere the writer cannot rewrite (RFC 3161 timestamping or an append-only store).
+- **Impact analysis per property.** `pnpm impact` reports every caller of a changed operation. That over-approximates,
+  which is the safe direction.
 
-Every gate has failing-case tests on committed fixture diffs (`tests/`, `fixtures/diffs/`), including the bypasses
-an independent review found (bracket access, aliasing, `self.fetch`, computed imports). [SPEC.md](SPEC.md) holds
-the original spec and an amendments log explaining each departure from it.
+[SPEC.md](SPEC.md) holds the original build spec and an amendments log explaining every departure from it.
 
 ## The brief
 
-> Placeholder: link to the full architectural brief.
+[docs/architectural-brief.pdf](docs/architectural-brief.pdf): *The Zevoy Collective: an architectural brief.*

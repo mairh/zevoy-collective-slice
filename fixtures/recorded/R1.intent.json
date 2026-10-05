@@ -1,0 +1,25 @@
+{
+  "requestId": "R1",
+  "agent": "intent",
+  "provenance": "ollama",
+  "model": "qwen2.5-coder:7b",
+  "promptVersion": "implementer.v2",
+  "recordedAt": "2026-10-05T00:33:30.165Z",
+  "output": {
+    "summary": "Update the empty state on the cards page to provide information about company cards and clarify who approves new ones.",
+    "scope": [
+      "src/ui/cards/CardEmptyState.tsx"
+    ],
+    "acceptance": [
+      "The empty state should display a clear and concise message explaining what company cards are for.",
+      "The message should indicate that new cards can be approved by a designated person or group.",
+      "The empty state should include a call-to-action button that directs users to the appropriate settings or approval page.",
+      "The design of the empty state should remain consistent with the rest of the CardsPage component."
+    ],
+    "outOfScope": [
+      "Adding new endpoints",
+      "Modifying other components",
+      "Changing the functionality of existing components"
+    ]
+  }
+}

