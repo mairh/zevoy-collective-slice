@@ -1,0 +1,11 @@
+# Fictional owners for the fixture app.
+/src/ui/cards/          @aino.virtanen
+/src/ui/expenses/       @mikko.laine
+/src/ui/dashboard/      @mikko.laine
+/src/ui/team/           @sara.niemi
+/src/ui/common/         @sara.niemi
+/src/api/               @joonas.koski
+/src/banking/           @joonas.koski
+/src/ledger/            @helmi.aalto
+/src/transactions/      @helmi.aalto
+/src/auth/              @joonas.koski

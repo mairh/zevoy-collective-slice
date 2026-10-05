@@ -1,0 +1,21 @@
+===================================================================
+--- a/src/ui/expenses/ExpenseForm.tsx
++++ b/src/ui/expenses/ExpenseForm.tsx
+@@ -28,6 +28,17 @@
+     onCreated(expense);
+   }
+ 
++  async function addSampleTaxi() {
++    onCreated(
++      await createExpense({
++        merchant: "Taxi Helsinki",
++        amount: { amountMinor: 1850, currency: "USD" },
++        category: "travel",
++        occurredAt: "2026-10-05T08:30:00Z",
++      }),
++    );
++  }
++
+   return (
+     <Panel title="New expense">
+       <form onSubmit={handleSubmit}>

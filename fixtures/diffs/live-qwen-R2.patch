@@ -1,0 +1,49 @@
+===================================================================
+--- a/src/ui/cards/CardSettingsPanel.tsx
++++ b/src/ui/cards/CardSettingsPanel.tsx
+@@ -19,6 +19,7 @@
+ export function CardSettingsPanel({ card, onSaved }: CardSettingsPanelProps) {
+   const [nickname, setNickname] = useState(card.nickname);
+   const [onlineEnabled, setOnlineEnabled] = useState(card.onlineEnabled);
++  const [transactionLimit, setTransactionLimit] = useState<string | null>(card.transactionLimit ? formatMoney(card.transactionLimit) : null);
+   const [saving, setSaving] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+ 
+@@ -27,7 +28,7 @@
+     setSaving(true);
+     setError(null);
+     try {
+-      const updated = await updateCardSettings(card.id, { nickname, onlineEnabled });
++      const updated = await updateCardSettings(card.id, { nickname, onlineEnabled, transactionLimit: transactionLimit ? { amountMinor: toMinorUnits(transactionLimit)!, currency: "EUR" } : null });
+       onSaved(updated);
+     } catch (err) {
+       setError(err instanceof Error ? err.message : "Could not save card settings");
+@@ -37,27 +38,5 @@
+   }
+ 
+   return (
+-    <Panel title="Card settings" subtitle={`${card.holderName} •••• ${card.last4}`}>
+-      <form onSubmit={handleSubmit}>
+-        <Field label="Card nickname" htmlFor="card-nickname">
+-          <TextInput id="card-nickname" value={nickname} onChange={setNickname} />
+-        </Field>
+-        <Field label="Online payments" htmlFor="card-online">
+-          <Toggle id="card-online" checked={onlineEnabled} onChange={setOnlineEnabled} />
+-        </Field>
+-        <Field label="Monthly limit" htmlFor="card-monthly-limit" hint="Set by your company admin.">
+-          <Money id="card-monthly-limit" amount={card.monthlyLimit} />
+-        </Field>
+-        <FreezeCardToggle cardId={card.id} frozen={card.status === "frozen"} />
+-        {error ? (
+-          <p role="alert" style={{ color: colors.danger, fontSize: 13 }}>
+-            {error}
+-          </p>
+-        ) : null}
+-        <Button type="submit" disabled={saving}>
+-          {saving ? "Saving…" : "Save changes"}
+-        </Button>
+-      </form>
+-    </Panel>
+-  );
++    <Panel title="Card settings" subtitle={`${card.holderName} •••• ${card.last4}`}>\n      <form onSubmit={handleSubmit}>\n        <Field label="Card nickname" htmlFor="card-nickname">\n          <TextInput id="card-nickname" value={nickname} onChange={setNickname} />\n        </Field>\n        <Field label="Online payments" htmlFor="card-online">\n          <Toggle id="card-online" checked={onlineEnabled} onChange={setOnlineEnabled} />\n        </Field>\n        <Field label="Transaction limit" htmlFor="card-transaction-limit" hint="Set by your company admin.">\n          <TextInput id="card-transaction-limit" value={transactionLimit} onChange={setTransactionLimit} inputMode="decimal" placeholder="Enter amount" />\n        </Field>\n        <Field label="Monthly limit" htmlFor="card-monthly-limit" hint="Set by your company admin.">\n          <Money id="card-monthly-limit" amount={card.monthlyLimit} />\n        </Field>\n        <FreezeCardToggle cardId={card.id} frozen={card.status === "frozen"} />\n        {error ? (\n          <p role="alert" style={{ color: colors.danger, fontSize: 13 }}>\n            {error}\n          </p>\n        ) : null}\n        <Button type="submit" disabled={saving}>\n          {saving ? "Saving…" : "Save changes"}\n        </Button>\n      </form>\n    </Panel>\n  );
+ }

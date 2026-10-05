@@ -1,0 +1,22 @@
+===================================================================
+--- a/src/ui/cards/CardListItem.tsx
++++ b/src/ui/cards/CardListItem.tsx
+@@ -1,3 +1,4 @@
++import { createBankingClient } from "../../banking/bankingClient";
+ import type { Card } from "../../types/card";
+ import { Money } from "../common/Money";
+ import { colors, text } from "../common/tokens";
+@@ -9,6 +10,13 @@
+ }
+ 
+ /** One row in the card list with its monthly limit. */
++const banking = createBankingClient({ baseUrl: "/api/v1/banking" });
++
++/** Prefetches settlement status. */
++export function prefetchSettlement(id: string) {
++  return banking.settlement(id);
++}
++
+ export function CardListItem({ card, selected, onSelect }: CardListItemProps) {
+   return (
+     <li>

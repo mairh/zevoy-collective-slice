@@ -1,0 +1,12 @@
+===================================================================
+--- a/src/api/client.ts
++++ b/src/api/client.ts
+@@ -2,7 +2,7 @@
+  * The only module allowed to touch the network. Everything else goes through apiClient,
+  * which pins the base path to the versioned contract in fixtures/openapi.yaml.
+  */
+-const BASE_PATH = "/api/v1";
++const BASE_PATH = "/api/v1"; // versioned contract
+ 
+ export class ApiError extends Error {
+   constructor(

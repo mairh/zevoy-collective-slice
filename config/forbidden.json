@@ -1,0 +1,12 @@
+{
+  "$comment": "AST rules for the ast-validation gate. Every rule flags only what the diff introduces; pre-existing occurrences are debt, not regressions.",
+  "networkCallees": ["fetch", "axios", "XMLHttpRequest", "navigator.sendBeacon", "WebSocket", "EventSource"],
+  "dynamicEvaluation": ["eval", "Function", "dangerouslySetInnerHTML", "setTimeout:string", "setInterval:string"],
+  "suppressionMarkers": ["eslint-disable", "@ts-ignore", "@ts-expect-error", "@ts-nocheck", "biome-ignore"],
+  "skipCalls": ["skip", "only"],
+  "bankingClient": {
+    "modules": ["src/banking/**"],
+    "allowedImporters": ["src/api/payments.ts"]
+  },
+  "envAccess": ["process.env", "import.meta.env"]
+}

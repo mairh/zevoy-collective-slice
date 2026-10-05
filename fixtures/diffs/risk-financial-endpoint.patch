@@ -1,0 +1,20 @@
+===================================================================
+--- a/src/ui/cards/FreezeCardToggle.tsx
++++ b/src/ui/cards/FreezeCardToggle.tsx
+@@ -1,5 +1,5 @@
+ import { useState } from "react";
+-import { freezeCard, unfreezeCard } from "../../api/cards";
++import { freezeCard, getCard, unfreezeCard } from "../../api/cards";
+ import { Field } from "../common/Field";
+ import { Toggle } from "../common/Toggle";
+ 
+@@ -13,7 +13,8 @@
+   const [isFrozen, setIsFrozen] = useState(frozen);
+   async function handleChange(next: boolean) {
+     const card = next ? await freezeCard(cardId) : await unfreezeCard(cardId);
+-    setIsFrozen(card.status === "frozen");
++    const fresh = await getCard(cardId);
++    setIsFrozen(fresh.status === "frozen");
+   }
+   return (
+     <Field label="Freeze card" htmlFor="card-frozen" hint="Frozen cards decline all new payments.">

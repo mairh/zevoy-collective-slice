@@ -1,0 +1,11 @@
+{
+  "$comment": "Inputs to the risk-tier classifier. The tier is computed from AST + graph; it is never proposed by a model.",
+  "amountFieldPattern": "(amount|balance|limit|total|price|fee|spend|payout|refund)",
+  "moneyComponents": ["Money"],
+  "moneyFormatters": ["formatMoney"],
+  "permissionCallees": ["usePermission", "hasPermission", "can"],
+  "presentationalAttributes": ["className", "style", "title", "aria-label", "aria-describedby", "placeholder", "hint", "subtitle"],
+  "financialPaths": ["**/ledger/**", "**/transactions/**", "**/banking/**", "**/payments*"],
+  "internalPaths": ["**/auth/**", "**/api/**"],
+  "agentClearance": "internal"
+}

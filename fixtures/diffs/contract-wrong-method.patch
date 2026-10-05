@@ -1,0 +1,21 @@
+===================================================================
+--- a/src/ui/cards/FreezeCardToggle.tsx
++++ b/src/ui/cards/FreezeCardToggle.tsx
+@@ -1,5 +1,7 @@
+ import { useState } from "react";
+-import { freezeCard, unfreezeCard } from "../../api/cards";
++import { unfreezeCard } from "../../api/cards";
++import { apiClient } from "../../api/client";
++import type { Card } from "../../types/card";
+ import { Field } from "../common/Field";
+ import { Toggle } from "../common/Toggle";
+ 
+@@ -12,7 +14,7 @@
+ export function FreezeCardToggle({ cardId, frozen }: FreezeCardToggleProps) {
+   const [isFrozen, setIsFrozen] = useState(frozen);
+   async function handleChange(next: boolean) {
+-    const card = next ? await freezeCard(cardId) : await unfreezeCard(cardId);
++    const card = next ? await apiClient.delete<Card>(`/cards/${cardId}/freeze`) : await unfreezeCard(cardId);
+     setIsFrozen(card.status === "frozen");
+   }
+   return (

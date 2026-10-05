@@ -1,0 +1,39 @@
+===================================================================
+--- a/src/ui/cards/CardSettingsPanel.tsx
++++ b/src/ui/cards/CardSettingsPanel.tsx
+@@ -1,5 +1,5 @@
+ import { type FormEvent, useState } from "react";
+-import { updateCardSettings } from "../../api/cards";
++import { updateCardSettings, formatMoney } from "../../api/cards";
+ import type { Card } from "../../types/card";
+ import { Button } from "../common/Button";
+ import { Field } from "../common/Field";
+@@ -37,27 +37,5 @@
+   }
+ 
+   return (
+-    <Panel title="Card settings" subtitle={`${card.holderName} •••• ${card.last4}`}>
+-      <form onSubmit={handleSubmit}>
+-        <Field label="Card nickname" htmlFor="card-nickname">
+-          <TextInput id="card-nickname" value={nickname} onChange={setNickname} />
+-        </Field>
+-        <Field label="Online payments" htmlFor="card-online">
+-          <Toggle id="card-online" checked={onlineEnabled} onChange={setOnlineEnabled} />
+-        </Field>
+-        <Field label="Monthly limit" htmlFor="card-monthly-limit" hint="Set by your company admin.">
+-          <Money id="card-monthly-limit" amount={card.monthlyLimit} />
+-        </Field>
+-        <FreezeCardToggle cardId={card.id} frozen={card.status === "frozen"} />
+-        {error ? (
+-          <p role="alert" style={{ color: colors.danger, fontSize: 13 }}>
+-            {error}
+-          </p>
+-        ) : null}
+-        <Button type="submit" disabled={saving}>
+-          {saving ? "Saving…" : "Save changes"}
+-        </Button>
+-      </form>
+-    </Panel>
+-  );
++    <Panel title="Card settings" subtitle={`${card.holderName} •••• ${card.last4}`}>\n      <form onSubmit={handleSubmit}>\n        <Field label="Card nickname" htmlFor="card-nickname">\n          <TextInput id="card-nickname" value={nickname} onChange={setNickname} />\n        </Field>\n        <Field label="Online payments" htmlFor="card-online">\n          <Toggle id="card-online" checked={onlineEnabled} onChange={setOnlineEnabled} />\n        </Field>\n        <Field label="Monthly limit" htmlFor="card-monthly-limit" hint="Set by your company admin.">\n          <Money id="card-monthly-limit" amount={card.monthlyLimit} />\n        </Field>\n        <Field label="Available balance" htmlFor="card-balance">\n          <Money id="card-balance" amount={card.transactionLimit} />\n        </Field>\n        <FreezeCardToggle cardId={card.id} frozen={card.status === "frozen"} />\n        {error ? (\n          <p role="alert" style={{ color: colors.danger, fontSize: 13 }}>\n            {error}\n          </p>\n        ) : null}\n        <Button type="submit" disabled={saving}>\n          {saving ? "Saving…" : "Save changes"}\n        </Button>\n      </form>\n    </Panel>\n  );
+ }

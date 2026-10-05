@@ -1,0 +1,12 @@
+===================================================================
+--- a/src/ui/cards/CardEmptyState.tsx
++++ b/src/ui/cards/CardEmptyState.tsx
+@@ -10,7 +10,7 @@
+ export function CardEmptyState({ onRequestCard }: CardEmptyStateProps) {
+   return (
+     <Panel title="No cards yet">
+-      <p style={text.body}>You don't have any company cards.</p>
++      <p style={text.body} dangerouslySetInnerHTML={{ __html: "You don't have <b>any</b> cards." }} />
+       <Button onClick={onRequestCard}>Request a card</Button>
+     </Panel>
+   );

@@ -1,0 +1,12 @@
+===================================================================
+--- a/src/ledger/ledgerMath.ts
++++ b/src/ledger/ledgerMath.ts
+@@ -9,7 +9,7 @@
+ 
+ /** Running balance in minor units. Debits reduce, credits increase. */
+ export function runningBalance(entries: LedgerEntry[]): number[] {
+-  let balance = 0;
++  let balance = 0; // start from zero
+   return entries.map((entry) => {
+     balance += (entry.credit?.amountMinor ?? 0) - (entry.debit?.amountMinor ?? 0);
+     return balance;

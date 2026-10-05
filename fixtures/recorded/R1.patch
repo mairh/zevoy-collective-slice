@@ -1,0 +1,16 @@
+===================================================================
+--- a/src/ui/cards/CardEmptyState.tsx
++++ b/src/ui/cards/CardEmptyState.tsx
+@@ -10,7 +10,11 @@
+ export function CardEmptyState({ onRequestCard }: CardEmptyStateProps) {
+   return (
+     <Panel title="No cards yet">
+-      <p style={text.body}>You don't have any company cards.</p>
++      <p style={text.body}>
++        Company cards let you pay for work purchases without spending your own money or waiting for a
++        reimbursement.
++      </p>
++      <p style={text.muted}>Your company admin approves new card requests, usually within one working day.</p>
+       <Button onClick={onRequestCard}>Request a card</Button>
+     </Panel>
+   );

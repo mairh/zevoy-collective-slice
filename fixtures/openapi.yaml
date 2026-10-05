@@ -1,0 +1,269 @@
+openapi: 3.0.3
+info:
+  title: Expense platform API (fixture)
+  version: 1.12.0
+  description: Mocked back-end contract for the slice. The api-contract gate validates every HTTP call against this file.
+servers:
+  - url: /api/v1
+paths:
+  /cards:
+    get:
+      operationId: listCards
+      x-sensitivity: financial
+      responses:
+        "200":
+          description: Cards visible to the caller
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Card" }
+  /cards/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getCard
+      x-sensitivity: financial
+      responses:
+        "200":
+          description: One card
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Card" }
+    patch:
+      operationId: updateCardSettings
+      x-sensitivity: financial
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CardSettingsUpdate" }
+      responses:
+        "200":
+          description: Updated card
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Card" }
+  /cards/{id}/freeze:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: freezeCard
+      x-sensitivity: financial
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        "200":
+          description: Frozen card
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Card" }
+  /cards/{id}/unfreeze:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: unfreezeCard
+      x-sensitivity: financial
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        "200":
+          description: Unfrozen card
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Card" }
+  /cards/{id}/transactions:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: listCardTransactions
+      x-sensitivity: financial
+      responses:
+        "200":
+          description: Posted transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Transaction" }
+  /expenses:
+    get:
+      operationId: listExpenses
+      x-sensitivity: internal
+      responses:
+        "200":
+          description: Caller's expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Expense" }
+    post:
+      operationId: createExpense
+      x-sensitivity: internal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewExpense" }
+      responses:
+        "201":
+          description: Created draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Expense" }
+  /expenses/{id}/submit:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: submitExpense
+      x-sensitivity: internal
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        "200":
+          description: Submitted expense
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Expense" }
+  /expenses/{id}/receipt:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: uploadReceipt
+      x-sensitivity: internal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [imageBase64]
+              properties:
+                imageBase64: { type: string }
+      responses:
+        "201":
+          description: Stored receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  receiptId: { type: string }
+                  pages: { type: integer }
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      x-sensitivity: internal
+      responses:
+        "200":
+          description: Signed-in user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+  /team:
+    get:
+      operationId: listTeamMembers
+      x-sensitivity: internal
+      responses:
+        "200":
+          description: Company members
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/User" }
+  /banking/settlements/{paymentId}:
+    parameters:
+      - { name: paymentId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getSettlement
+      x-sensitivity: financial
+      responses:
+        "200":
+          description: Settlement status with the issuing bank
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  settled: { type: boolean }
+                  settledAt: { type: string, nullable: true }
+components:
+  schemas:
+    Money:
+      type: object
+      additionalProperties: false
+      required: [amountMinor, currency]
+      properties:
+        amountMinor: { type: integer, minimum: 0 }
+        currency: { type: string, enum: [EUR] }
+    Card:
+      type: object
+      required: [id, last4, holderName, nickname, status, onlineEnabled, contactlessEnabled, monthlyLimit, transactionLimit]
+      properties:
+        id: { type: string }
+        last4: { type: string }
+        holderName: { type: string }
+        nickname: { type: string }
+        status: { type: string, enum: [active, frozen, cancelled] }
+        onlineEnabled: { type: boolean }
+        contactlessEnabled: { type: boolean }
+        monthlyLimit: { $ref: "#/components/schemas/Money" }
+        transactionLimit:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Money"
+    CardSettingsUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        nickname: { type: string, maxLength: 40 }
+        onlineEnabled: { type: boolean }
+        contactlessEnabled: { type: boolean }
+        transactionLimit:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Money"
+    Transaction:
+      type: object
+      properties:
+        id: { type: string }
+        cardId: { type: string }
+        merchant: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        postedAt: { type: string, format: date-time }
+    Expense:
+      type: object
+      properties:
+        id: { type: string }
+        merchant: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        category: { type: string }
+        status: { type: string, enum: [draft, submitted, approved, rejected] }
+        receiptId: { type: string, nullable: true }
+        occurredAt: { type: string, format: date-time }
+    NewExpense:
+      type: object
+      additionalProperties: false
+      required: [merchant, amount, category, occurredAt]
+      properties:
+        merchant: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        category: { type: string }
+        occurredAt: { type: string, format: date-time }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [employee, approver, admin] }
+        permissions: { type: array, items: { type: string } }

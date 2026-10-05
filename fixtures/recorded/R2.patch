@@ -1,0 +1,59 @@
+===================================================================
+--- a/src/ui/cards/CardSettingsPanel.tsx
++++ b/src/ui/cards/CardSettingsPanel.tsx
+@@ -1,5 +1,6 @@
+ import { type FormEvent, useState } from "react";
+ import { updateCardSettings } from "../../api/cards";
++import { fromMinorUnits, toMinorUnits } from "../../lib/money";
+ import type { Card } from "../../types/card";
+ import { Button } from "../common/Button";
+ import { Field } from "../common/Field";
+@@ -19,15 +20,27 @@
+ export function CardSettingsPanel({ card, onSaved }: CardSettingsPanelProps) {
+   const [nickname, setNickname] = useState(card.nickname);
+   const [onlineEnabled, setOnlineEnabled] = useState(card.onlineEnabled);
++  const [transactionLimit, setTransactionLimit] = useState(
++    card.transactionLimit ? fromMinorUnits(card.transactionLimit.amountMinor) : "",
++  );
+   const [saving, setSaving] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+ 
+   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+     event.preventDefault();
++    const limitMinor = transactionLimit.trim() === "" ? null : toMinorUnits(transactionLimit);
++    if (transactionLimit.trim() !== "" && limitMinor === null) {
++      setError("Enter the limit as an amount, for example 150,00");
++      return;
++    }
+     setSaving(true);
+     setError(null);
+     try {
+-      const updated = await updateCardSettings(card.id, { nickname, onlineEnabled });
++      const updated = await updateCardSettings(card.id, {
++        nickname,
++        onlineEnabled,
++        transactionLimit: limitMinor === null ? null : { amountMinor: limitMinor, currency: "EUR" },
++      });
+       onSaved(updated);
+     } catch (err) {
+       setError(err instanceof Error ? err.message : "Could not save card settings");
+@@ -48,6 +61,19 @@
+         <Field label="Monthly limit" htmlFor="card-monthly-limit" hint="Set by your company admin.">
+           <Money id="card-monthly-limit" amount={card.monthlyLimit} />
+         </Field>
++        <Field
++          label="Per-transaction limit (EUR)"
++          htmlFor="card-transaction-limit"
++          hint="Leave empty for no per-transaction limit."
++        >
++          <TextInput
++            id="card-transaction-limit"
++            value={transactionLimit}
++            onChange={setTransactionLimit}
++            inputMode="decimal"
++            placeholder="No limit"
++          />
++        </Field>
+         <FreezeCardToggle cardId={card.id} frozen={card.status === "frozen"} />
+         {error ? (
+           <p role="alert" style={{ color: colors.danger, fontSize: 13 }}>

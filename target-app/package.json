@@ -1,0 +1,10 @@
+{
+  "name": "expense-web",
+  "version": "3.4.0",
+  "private": true,
+  "description": "Fixture front end for the slice: corporate cards and expense management. Dependencies resolve from the slice root.",
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

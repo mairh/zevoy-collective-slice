@@ -1,0 +1,13 @@
+===================================================================
+--- a/src/ui/cards/CardSettingsPanel.tsx
++++ b/src/ui/cards/CardSettingsPanel.tsx
+@@ -28,6 +28,9 @@
+     setError(null);
+     try {
+       const updated = await updateCardSettings(card.id, { nickname, onlineEnabled });
++      if (updated.pendingReview) {
++        setError("Changes are waiting for admin review");
++      }
+       onSaved(updated);
+     } catch (err) {
+       setError(err instanceof Error ? err.message : "Could not save card settings");

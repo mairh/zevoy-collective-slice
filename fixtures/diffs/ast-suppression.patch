@@ -1,0 +1,15 @@
+===================================================================
+--- a/src/ui/cards/CardList.tsx
++++ b/src/ui/cards/CardList.tsx
+@@ -8,9 +8,11 @@
+ }
+ 
+ /** All cards the user can see. */
++// @ts-ignore legacy props
+ export function CardList({ cards, selectedId, onSelect }: CardListProps) {
+   return (
+     <ul style={{ listStyle: "none", padding: 0 }}>
++      {/* eslint-disable-next-line react/jsx-key */}
+       {cards.map((card) => (
+         <CardListItem key={card.id} card={card} selected={card.id === selectedId} onSelect={onSelect} />
+       ))}

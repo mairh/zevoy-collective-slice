@@ -1,0 +1,12 @@
+===================================================================
+--- a/src/ui/cards/CardSettingsPanel.tsx
++++ b/src/ui/cards/CardSettingsPanel.tsx
+@@ -27,7 +27,7 @@
+     setSaving(true);
+     setError(null);
+     try {
+-      const updated = await updateCardSettings(card.id, { nickname, onlineEnabled });
++      const updated = await updateCardSettings(card.id, { nickname, onlineEnabled, spendingCap: 100 });
+       onSaved(updated);
+     } catch (err) {
+       setError(err instanceof Error ? err.message : "Could not save card settings");

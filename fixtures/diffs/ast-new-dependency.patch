@@ -1,0 +1,17 @@
+===================================================================
+--- a/src/ui/cards/CardEmptyState.tsx
++++ b/src/ui/cards/CardEmptyState.tsx
+@@ -1,3 +1,4 @@
++import confetti from "canvas-confetti";
+ import { Button } from "../common/Button";
+ import { Panel } from "../common/Panel";
+ import { text } from "../common/tokens";
+@@ -11,7 +12,7 @@
+   return (
+     <Panel title="No cards yet">
+       <p style={text.body}>You don't have any company cards.</p>
+-      <Button onClick={onRequestCard}>Request a card</Button>
++      <Button onClick={() => { confetti(); onRequestCard(); }}>Request a card</Button>
+     </Panel>
+   );
+ }

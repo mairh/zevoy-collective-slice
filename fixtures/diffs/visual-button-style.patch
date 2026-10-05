@@ -1,0 +1,12 @@
+===================================================================
+--- a/src/ui/common/Button.tsx
++++ b/src/ui/common/Button.tsx
+@@ -18,7 +18,7 @@
+       disabled={disabled}
+       onClick={onClick}
+       style={{
+-        padding: "8px 14px",
++        padding: "10px 18px",
+         fontSize: 14,
+         fontWeight: 600,
+         borderRadius: 6,

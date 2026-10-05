@@ -1,0 +1,11 @@
+===================================================================
+--- a/src/ui/cards/FreezeCardToggle.tsx
++++ b/src/ui/cards/FreezeCardToggle.tsx
+@@ -11,6 +11,7 @@
+ /** Freezes or unfreezes a card immediately, outside the settings form submit. */
+ export function FreezeCardToggle({ cardId, frozen }: FreezeCardToggleProps) {
+   const [isFrozen, setIsFrozen] = useState(frozen);
++  const enabled = process.env.FEATURE_FREEZE === "on";
+   async function handleChange(next: boolean) {
+     const card = next ? await freezeCard(cardId) : await unfreezeCard(cardId);
+     setIsFrozen(card.status === "frozen");

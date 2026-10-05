@@ -1,0 +1,12 @@
+===================================================================
+--- a/src/api/cards.ts
++++ b/src/api/cards.ts
+@@ -16,7 +16,7 @@
+   return apiClient.patch<Card>(`/cards/${cardId}`, settings);
+ }
+ 
+-/** Freezes a card immediately. */
++/** Freezes a card immediately. Idempotent. */
+ export function freezeCard(cardId: string): Promise<Card> {
+   return apiClient.post<Card>(`/cards/${cardId}/freeze`, {});
+ }

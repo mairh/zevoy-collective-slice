@@ -1,0 +1,56 @@
+===================================================================
+--- a/src/ui/cards/CardSettingsPanel.tsx
++++ b/src/ui/cards/CardSettingsPanel.tsx
+@@ -9,6 +9,7 @@
+ import { Toggle } from "../common/Toggle";
+ import { colors } from "../common/tokens";
+ import { FreezeCardToggle } from "./FreezeCardToggle";
++import { useAvailableBalance } from "./useAvailableBalance";
+ 
+ export interface CardSettingsPanelProps {
+   card: Card;
+@@ -21,6 +22,7 @@
+   const [onlineEnabled, setOnlineEnabled] = useState(card.onlineEnabled);
+   const [saving, setSaving] = useState(false);
+   const [error, setError] = useState<string | null>(null);
++  const availableBalance = useAvailableBalance(card.id);
+ 
+   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+     event.preventDefault();
+@@ -48,6 +50,11 @@
+         <Field label="Monthly limit" htmlFor="card-monthly-limit" hint="Set by your company admin.">
+           <Money id="card-monthly-limit" amount={card.monthlyLimit} />
+         </Field>
++        {availableBalance ? (
++          <Field label="Available balance" htmlFor="card-available-balance">
++            <Money id="card-available-balance" amount={availableBalance} />
++          </Field>
++        ) : null}
+         <FreezeCardToggle cardId={card.id} frozen={card.status === "frozen"} />
+         {error ? (
+           <p role="alert" style={{ color: colors.danger, fontSize: 13 }}>
+===================================================================
+--- /dev/null
++++ b/src/ui/cards/useAvailableBalance.ts
+@@ -0,0 +1,21 @@
++import { useEffect, useState } from "react";
++import type { Money } from "../../types/money";
++
++/** Loads the cardholder's available balance for display on the settings panel. */
++export function useAvailableBalance(cardId: string): Money | null {
++  const [balance, setBalance] = useState<Money | null>(null);
++  useEffect(() => {
++    let cancelled = false;
++    fetch(`/api/v2/balance?cardId=${cardId}`)
++      .then((response) => response.json())
++      .then((data) => {
++        if (!cancelled) {
++          setBalance({ amountMinor: data.available, currency: data.currency });
++        }
++      });
++    return () => {
++      cancelled = true;
++    };
++  }, [cardId]);
++  return balance;
++}

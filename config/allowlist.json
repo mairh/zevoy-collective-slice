@@ -1,0 +1,13 @@
+{
+  "$comment": "Paths are relative to the target repo root. A path must match an allow glob and no deny glob. Deny always wins.",
+  "allow": ["src/ui/**"],
+  "deny": [
+    "**/ledger/**",
+    "**/transactions/**",
+    "**/auth/**",
+    "**/*.generated.ts",
+    "**/*.fixture.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+}

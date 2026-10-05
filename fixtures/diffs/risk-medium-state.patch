@@ -1,0 +1,26 @@
+===================================================================
+--- a/src/ui/cards/CardEmptyState.tsx
++++ b/src/ui/cards/CardEmptyState.tsx
+@@ -1,3 +1,4 @@
++import { useState } from "react";
+ import { Button } from "../common/Button";
+ import { Panel } from "../common/Panel";
+ import { text } from "../common/tokens";
+@@ -8,10 +9,17 @@
+ 
+ /** Shown on the cards page when the user has no cards. */
+ export function CardEmptyState({ onRequestCard }: CardEmptyStateProps) {
++  const [dismissed, setDismissed] = useState(false);
++  if (dismissed) {
++    return null;
++  }
+   return (
+     <Panel title="No cards yet">
+       <p style={text.body}>You don't have any company cards.</p>
+       <Button onClick={onRequestCard}>Request a card</Button>
++      <Button variant="secondary" onClick={() => setDismissed(true)}>
++        Not now
++      </Button>
+     </Panel>
+   );
+ }

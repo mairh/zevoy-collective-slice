@@ -1,0 +1,12 @@
+===================================================================
+--- a/src/ui/cards/CardSettingsPanel.fixture.tsx
++++ b/src/ui/cards/CardSettingsPanel.fixture.tsx
+@@ -5,7 +5,7 @@
+   id: "card_7f3a",
+   last4: "4821",
+   holderName: "Aino Virtanen",
+-  nickname: "Travel",
++  nickname: "Travel and meals",
+   status: "active",
+   onlineEnabled: true,
+   contactlessEnabled: true,

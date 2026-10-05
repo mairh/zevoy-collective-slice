@@ -1,0 +1,16 @@
+{
+  "requests": [
+    {
+      "id": "R1",
+      "request": "Make the empty state on the cards page explain what company cards are for and who approves new ones"
+    },
+    {
+      "id": "R2",
+      "request": "Add a transaction limit field to the card settings panel"
+    },
+    {
+      "id": "R3",
+      "request": "Fetch the user's available balance and show it on the card settings panel"
+    }
+  ]
+}

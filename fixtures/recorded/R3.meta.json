@@ -1,0 +1,8 @@
+{
+  "requestId": "R3",
+  "provenance": "hand-authored",
+  "model": "none",
+  "promptVersion": "implementer.v1",
+  "recordedAt": "2026-10-05T00:00:00.000Z",
+  "note": "Hand-authored stand-in for model output, written to exercise the gates. Replace with a genuine run: pnpm demo --live --record"
+}
