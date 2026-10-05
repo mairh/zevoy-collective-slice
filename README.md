@@ -25,7 +25,7 @@ $ pnpm demo --only R3
       Release: none · breaker src/ui/cards/ 1/3 · kill switch off
 ```
 
-The full `pnpm demo` runs three requests (about 84 s recorded: [`demo.mp4`](demo.mp4)) and ends with:
+The full `pnpm demo` runs three requests and ends with:
 
 ```
 Summary
@@ -35,6 +35,17 @@ Summary
 
 Audit    hash chain verified · 38 events from 3 runs appended
 Egress   16 outbound calls to 127.0.0.1:11434 · 0 refused · allow-list 127.0.0.1, localhost, ::1
+```
+
+![pnpm demo, 83-second recording](demo.gif)
+
+The same recording as video: [`demo.mp4`](demo.mp4).
+
+**To run it yourself** you need Node 22.5+, pnpm and Google Chrome. Ollama is optional; without it, agents replay
+their committed recordings and embeddings use a labelled lexical fallback.
+
+```bash
+pnpm install && pnpm demo && pnpm test
 ```
 
 ## Why the gates matter more than the generation
