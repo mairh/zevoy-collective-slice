@@ -170,7 +170,9 @@ async function printStep(step: Step, state: RunState, resumed: boolean): Promise
       }
     }
     await say();
-    if (state.verdict === "AUTONOMOUS") {
+    if (state.verdict === "AUTONOMOUS" && state.release.deploy !== "autonomous-canary") {
+      await say(`${INDENT}${pc.yellow(pc.bold("ELIGIBLE, BUT HELD FOR A HUMAN:"))} ${pc.dim(state.release.reason)}`);
+    } else if (state.verdict === "AUTONOMOUS") {
       await say(
         `${INDENT}${pc.green(pc.bold("ELIGIBLE FOR AUTONOMOUS DEPLOY."))} ${pc.dim("Would enter canary at 1% (deploy itself is simulated in this slice).")}`,
       );
